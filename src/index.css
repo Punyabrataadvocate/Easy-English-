@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Hind+Siliguri:wght@300;400;500;600;700&family=Caveat:wght@400..700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-bg-primary: #0A0512;
+  --color-bg-card: #150C24;
+  --color-bg-surface: #22143A;
+  --color-gold-primary: #A855F7;
+  --color-gold-light: #F5D0FE;
+  --color-gold-glow: rgba(168, 85, 247, 0.25);
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #D8B4FE;
+  --color-text-muted: #8B5CF6;
+  --color-success-green: #34D399;
+  --color-warning-gold: #FCD34D;
+  --color-error-red: #F87171;
+  --color-accent-purple: #7E22CE;
+  --color-border-subtle: rgba(168, 85, 247, 0.4);
+
+  --font-display: "Poppins", sans-serif;
+  --font-sans: "Poppins", sans-serif;
+  --font-mono: ui-monospace, monospace;
+  --font-bengali: "Hind Siliguri", sans-serif;
+  --font-caveat: "Caveat", cursive;
+}
+
+@layer utilities {
+  .chalkboard-bg {
+    background-color: #14241C;
+    background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+}
+
+/* Global utility classes to enlarge UI dynamically and make all letters & instructions highly visible */
+.ui-large .text-xs,
+.ui-large .text-\[10px\] {
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+}
+.ui-large .text-\[11px\] {
+  font-size: 14.5px !important;
+  line-height: 1.4 !important;
+}
+.ui-large .text-\[9px\] {
+  font-size: 13.5px !important;
+  line-height: 1.3 !important;
+}
+.ui-large .text-sm {
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+}
+.ui-large .text-base {
+  font-size: 17.5px !important;
+  line-height: 1.5 !important;
+}
+.ui-large .text-lg {
+  font-size: 19.5px !important;
+  line-height: 1.5 !important;
+}
+.ui-large .text-xl {
+  font-size: 21px !important;
+  line-height: 1.5 !important;
+}
+.ui-large .text-2xl {
+  font-size: 25px !important;
+  line-height: 1.4 !important;
+}
+.ui-large .text-3xl {
+  font-size: 29px !important;
+  line-height: 1.3 !important;
+}
+.ui-large .text-4xl {
+  font-size: 35px !important;
+  line-height: 1.2 !important;
+}
+.ui-large p, .ui-large span, .ui-large h1, .ui-large h2, .ui-large h3, .ui-large h4, .ui-large h5, .ui-large h6, .ui-large button, .ui-large li, .ui-large input {
+  font-weight: 500 !important;
+}
+.ui-large strong {
+  font-weight: 700 !important;
+}
+

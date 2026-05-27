@@ -1,0 +1,6 @@
+{
+  "name": "Easy English",
+  "description": "Learn to speak English confidently with VANI (Voice Adaptive Native Intelligence), your personal voice-first AI feedback coach.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
