@@ -74,8 +74,8 @@ export default function BlackboardPanel({ targetWordDetail, repetitionsCount }: 
             </span>
           </div>
           <div>
-            <span className="text-sm font-sans tracking-tight text-white/40 block">Bengali tip / বাংলা সাহায্য:</span>
-            <p className="text-lg text-slate-100 font-bengali leading-relaxed">
+            <span className="text-sm font-sans tracking-tight text-white/40 block">Bengali tip / <span lang="bn">বাংলা সাহায্য</span>:</span>
+            <p className="text-lg text-slate-100 font-bengali leading-relaxed" lang="bn">
               {bengaliTip}
             </p>
           </div>

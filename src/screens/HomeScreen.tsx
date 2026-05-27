@@ -592,11 +592,21 @@ export default function HomeScreen({
             <div 
               key={scr.id}
               data-scenario={scr.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Scenario: ${scr.title}. ${scr.level} level, duration ${scr.duration}.`}
               onClick={() => {
                 setActiveScenarioDetail(scr);
                 speakVani(`Opened scenario preview for: ${scr.title}.`);
               }}
-              className="w-[160px] h-[160px] bg-[#1A1A1A] rounded-2xl overflow-hidden border border-[#BD53F4]/20 hover:border-[#BD53F4]/50 transition-all flex flex-col justify-between shrink-0 cursor-pointer select-none active:scale-[0.98] snap-start relative group"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setActiveScenarioDetail(scr);
+                  speakVani(`Opened scenario preview for: ${scr.title}.`);
+                }
+              }}
+              className="w-[160px] h-[160px] bg-[#1A1A1A] rounded-2xl overflow-hidden border border-[#BD53F4]/20 hover:border-[#BD53F4]/50 transition-all flex flex-col justify-between shrink-0 cursor-pointer select-none active:scale-[0.98] snap-start relative group focus:outline-none focus:ring-2 focus:ring-[#BD53F4]"
             >
               {/* Photo Background */}
               <div className="h-[100px] w-full relative overflow-hidden bg-slate-900 flex items-center justify-center">

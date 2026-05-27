@@ -1,6 +1,27 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Hind+Siliguri:wght@300;400;500;600;700&family=Caveat:wght@400..700&display=swap');
 @import "tailwindcss";
 
+:root {
+  --orange-text    : #FF8C4A;
+  --orange-button  : #FF6B2B;
+  --orange-large   : #FF6B2B;
+  --text-primary   : #F5F5F5;
+  --text-secondary : #B0B0B0;
+  --bg-primary     : #0D0D0D;
+  --bg-card        : #1A1A1A;
+  --success-color  : #34D399;
+  --warning-color  : #FBBF24;
+  --error-color    : #F87171;
+}
+
+/* Global utility override classes to enforce contrast ratio 4.5:1 */
+.text-\[\#AAAAAA\] {
+  color: #B0B0B0 !important;
+}
+.text-\[\#555555\] {
+  color: #767676 !important;
+}
+
 @theme {
   --color-bg-primary: #0A0512;
   --color-bg-card: #150C24;

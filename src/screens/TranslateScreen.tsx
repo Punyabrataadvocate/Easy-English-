@@ -359,7 +359,7 @@ export default function TranslateScreen({
         <div className="col-span-5 bg-[#141416]/90 border-2 border-[#BD53F4] rounded-2xl p-3 text-center space-y-1">
           <span className="text-[9px] font-mono font-black text-gray-400 block uppercase">You Speak</span>
           <p className="text-sm font-black text-white flex items-center justify-center gap-1">
-            <span>🇮🇳</span> <span className="font-sans">বাংলা (Bengali)</span>
+            <span>🇮🇳</span> <span className="font-sans" lang="bn">বাংলা (Bengali)</span>
           </p>
         </div>
         
@@ -439,11 +439,13 @@ export default function TranslateScreen({
 
         <div className="text-center">
           <p className="font-bengali text-sm font-bold text-white uppercase tracking-wider">
-            {translateState === 'recording' 
-              ? 'শুনছি...' 
-              : translateState === 'processing' 
-              ? 'অনুবাদ হচ্ছে...' 
-              : 'বাংলায় বলুন'}
+            {translateState === 'recording' ? (
+              <span lang="bn">শুনছি...</span>
+            ) : translateState === 'processing' ? (
+              <span lang="bn">অনুবাদ হচ্ছে...</span>
+            ) : (
+              <span lang="bn">বাংলায় বলুন</span>
+            )}
           </p>
           <p className="text-[10px] text-[#888888] font-mono uppercase tracking-widest pt-0.5">
             {translateState === 'recording' 
@@ -475,12 +477,12 @@ export default function TranslateScreen({
             id="translation-card"
           >
             {/* Section A — What you said */}
-            <div className="space-y-1.5 text-left">
-              <span className="text-[10px] font-mono text-gray-400 font-bold uppercase tracking-wider block font-bengali">
-                আপনি বললেন (You said):
-              </span>
+            <div className="space-y-1.5 text-left" role="region" aria-label="Bengali speech you spoke">
+              <label htmlFor="bengali-text" className="text-[10px] font-mono text-gray-400 font-bold uppercase tracking-wider block font-bengali">
+                <span lang="bn">আপনি বললেন</span> (You said):
+              </label>
               <div className="bg-black/30 p-3.5 rounded-xl border border-white/5">
-                <p className="font-bengali text-base text-white leading-normal">
+                <p id="bengali-text" className="font-bengali text-base text-white leading-normal" lang="bn">
                   {bengaliText || "..."}
                 </p>
               </div>
@@ -571,6 +573,7 @@ export default function TranslateScreen({
               key={idx}
               onClick={() => triggerSimulation(item.tag)}
               className="px-2.5 py-1.5 bg-[#141416] hover:bg-black border border-white/5 text-[10px] text-gray-300 font-bold rounded-lg cursor-pointer transition-all hover:border-[#BD53F4]/40 active:scale-95"
+              lang="bn"
             >
               {item.label}
             </button>
@@ -614,7 +617,7 @@ export default function TranslateScreen({
                 className="p-3 bg-[#131315] hover:bg-[#18181A] border border-white/5 rounded-xl cursor-pointer transition-all flex items-center justify-between gap-4 group hover:border-[#BD53F4]/20"
               >
                 <div className="min-w-0 flex-1 space-y-1">
-                  <p className="font-bengali text-xs text-gray-400 truncate">
+                  <p className="font-bengali text-xs text-gray-400 truncate" lang="bn">
                     {item.bengali}
                   </p>
                   <p className="text-sm font-bold text-white tracking-tight truncate group-hover:text-[#BD53F4] transition-colors">

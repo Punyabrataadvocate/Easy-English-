@@ -132,6 +132,60 @@ export default function App() {
   // 6 core tabs: 'home' | 'topics' | 'latest' | 'talk' | 'translate' | 'progress'
   const [activeTab, setActiveTab] = useState<'home' | 'topics' | 'latest' | 'talk' | 'translate' | 'progress'>('home');
 
+  // Captions and translation state (WCAG accessible)
+  const [captionsEnabled, setCaptionsEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('vani_captions_enabled');
+    return saved !== 'false';
+  });
+  const [currentCaption, setCurrentCaption] = useState<string>("");
+  const [captionVisible, setCaptionVisible] = useState<boolean>(false);
+
+  useEffect(() => {
+    localStorage.setItem('vani_captions_enabled', captionsEnabled ? 'true' : 'false');
+  }, [captionsEnabled]);
+
+  // Self-politeness announcement function
+  const announceToScreenReader = (text: string) => {
+    const el = document.getElementById("a11y-announcer");
+    if (el) {
+      el.textContent = text;
+      // Reset after a brief period
+      setTimeout(() => {
+        if (el && el.textContent === text) el.textContent = "";
+      }, 5000);
+    }
+  };
+
+  // Stop Coach Vani's utterance and reset layout
+  const stopVANI = () => {
+    window.speechSynthesis.cancel();
+    setStatus("idle");
+    setCaptionVisible(false);
+    announceToScreenReader("VANI stopped speaking");
+  };
+
+  // Keyboard shortcut supporting Space to stop and Enter to click selected element
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Space bar stops VANI speaking
+      if (e.code === "Space" && window.speechSynthesis.speaking) {
+        e.preventDefault();
+        stopVANI();
+      }
+      // Enter activates mic button if selected or if appropriate
+      if (e.code === "Enter") {
+        const micBtn = document.getElementById("mic-btn");
+        if (micBtn && document.activeElement === micBtn) {
+          micBtn.click();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown);
+    };
+  }, []);
+
   // Dynamic overlays & details panel states
   const [currentSubScreen, setCurrentSubScreen] = useState<null | { type: 'lesson-detail'; id: string } | { type: 'role-play'; id: string } | { type: 'verification' } | { type: 'membership' }>(null);
 
@@ -213,19 +267,38 @@ export default function App() {
   const [interestTopic, setInterestTopic] = useState<string>("General Conversation");
 
   // ── STATEFUL VANI UNIFIED IMAGE SERVICE ──────────────────
+  // Reads dynamically from localStorage to ensure robust lifetime persistence across all client sessions
   const [scenarioImages, setScenarioImages] = useState<Record<string, string>>(() => {
     const cached: Record<string, string> = {};
-    const keys = [
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("easy_english_img_")) {
+          const id = key.substring("easy_english_img_".length);
+          const val = localStorage.getItem(key);
+          if (val) {
+            cached[id] = val;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[VANI Image Service] Failed to read localStorage preview cache", e);
+    }
+    
+    // Fallback static checklist alignment for hardcoded IDs in case of raw sandbox starts
+    const fallbackKeys = [
       "ji-intro", "ji-edu", "ji-exp", "ji-tough", "ji-general", 
       "off-greet", "off-meet", "off-req", "off-feed", "fam-friends", 
       "fam-dinner", "fam-plans", "fam-console", "tr-airport", "tr-flight", 
       "tr-directions", "tr-hotel", "ptm-teacher", "ptm-results", "stu-admission", "stu-prof"
     ];
-    keys.forEach(id => {
-      const val = localStorage.getItem(`easy_english_img_${id}`);
-      if (val) {
-        cached[id] = val;
-      }
+    fallbackKeys.forEach(id => {
+      try {
+        const val = localStorage.getItem(`easy_english_img_${id}`);
+        if (val) {
+          cached[id] = val;
+        }
+      } catch (e) {}
     });
     return cached;
   });
@@ -259,8 +332,11 @@ export default function App() {
       }
       throw new Error("No image URL returned in response JSON");
     } catch (err) {
-      console.warn(`[VANI Image Service] Rate exceeded or offline for ${id} (${title}). Using high-fidelity fallback Unsplash asset.`, err);
-      localStorage.setItem(`easy_english_img_${id}`, promptConfig.fallback);
+      console.warn(`[VANI Image Service] Rate exceeded or offline for ID: ${id} (${title}). Storing high-fidelity fallback Unsplash asset: ${promptConfig.fallback}.`, err);
+      // Ensure the cache is always filled to bypass future skeleton loading delays
+      try {
+        localStorage.setItem(`easy_english_img_${id}`, promptConfig.fallback);
+      } catch (e) {}
       setScenarioImages(prev => ({ ...prev, [id]: promptConfig.fallback }));
       return promptConfig.fallback;
     } finally {
@@ -269,19 +345,43 @@ export default function App() {
   };
 
   const loadAllScenarioImages = async (scenariosList: Array<{ id: string; title: string }>) => {
-    console.log("[VANI Dynamic Orchestration] Pre-loading all missing scenario high-resolution assets...");
-    for (const scr of scenariosList) {
+    console.log("[VANI Dynamic Orchestration] Pre-loading and caching scenario illustrations...");
+    
+    // Prioritize 'Describe your Education' (ji-edu) and 'Give Feedback to a Team' (off-feed) scenario tasks
+    const sortedScenarios = [...scenariosList].sort((a, b) => {
+      const aEdu = (a.id === 'ji-edu' || a.title.toLowerCase().includes('education'));
+      const bEdu = (b.id === 'ji-edu' || b.title.toLowerCase().includes('education'));
+      if (aEdu && !bEdu) return -1;
+      if (!aEdu && bEdu) return 1;
+
+      const aFeed = (a.id === 'off-feed' || a.title.toLowerCase().includes('feedback'));
+      const bFeed = (b.id === 'off-feed' || b.title.toLowerCase().includes('feedback'));
+      if (aFeed && !bFeed) return -1;
+      if (!aFeed && bFeed) return 1;
+
+      return 0;
+    });
+
+    for (const scr of sortedScenarios) {
       const cached = localStorage.getItem(`easy_english_img_${scr.id}`);
       if (!cached) {
         await generateScenarioImage(scr.id, scr.title);
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Clean stagger delay to respect endpoint request rate bounds
+        await new Promise(resolve => setTimeout(resolve, 600));
+      } else {
+        // Enforce reactive state synchronization to prevent UI delays
+        if (!scenarioImages[scr.id]) {
+          setScenarioImages(prev => ({ ...prev, [scr.id]: cached }));
+        }
       }
     }
   };
 
   const clearImageCache = async (scenariosList: Array<{ id: string; title: string }>) => {
     scenariosList.forEach(scr => {
-      localStorage.removeItem(`easy_english_img_${scr.id}`);
+      try {
+        localStorage.removeItem(`easy_english_img_${scr.id}`);
+      } catch (e) {}
     });
     setScenarioImages({});
     speakVani("System and image cache cleared successfully. Regenerating customized canvas illustrations.");
@@ -350,11 +450,22 @@ export default function App() {
   const latestSpeechRef = useRef<string>("");
 
   // Synthesis Voice Engine
-  const speakVani = (text: string) => {
-    if (!voiceEnabled || !('speechSynthesis' in window)) return;
+  const speakVani = (text: string, callback?: () => void) => {
+    if (!voiceEnabled || !('speechSynthesis' in window)) {
+      if (callback) callback();
+      return;
+    }
 
     // Use cancel to clear previous lines
     window.speechSynthesis.cancel();
+
+    // WCAG FIX — Update caption text immediately when speech starts preparing
+    if (text && captionsEnabled) {
+      setCurrentCaption(text);
+      setCaptionVisible(true);
+    } else {
+      setCaptionVisible(false);
+    }
 
     // Adding a 100ms timeout prevents the well-known Chrome/Safari speech synthesis hang
     setTimeout(() => {
@@ -362,7 +473,10 @@ export default function App() {
         .replace(/[*#_\-\[\]()]/g, '')
         .replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDFFF]/g, '');
 
-      if (!cleanText.trim()) return;
+      if (!cleanText.trim()) {
+        if (callback) callback();
+        return;
+      }
 
       const utterance = new SpeechSynthesisUtterance(cleanText);
       const voices = window.speechSynthesis.getVoices();
@@ -376,9 +490,23 @@ export default function App() {
       utterance.rate = speechRate === 'slow' ? 0.72 : 1.0;
       utterance.pitch = 1.05;
 
-      utterance.onstart = () => setStatus('speaking');
-      utterance.onend = () => setStatus('idle');
-      utterance.onerror = () => setStatus('idle');
+      utterance.onstart = () => {
+        setStatus('speaking');
+        announceToScreenReader("VANI says: " + cleanText);
+      };
+      utterance.onend = () => {
+        setStatus('idle');
+        // Hide captions after delay
+        setTimeout(() => {
+          setCaptionVisible(false);
+        }, 1500);
+        if (callback) callback();
+      };
+      utterance.onerror = () => {
+        setStatus('idle');
+        setCaptionVisible(false);
+        if (callback) callback();
+      };
 
       window.speechSynthesis.speak(utterance);
     }, 120);
@@ -574,46 +702,7 @@ Plain text only — NO asterisks, NO bullet points, NO markdown. Output goes dir
   }
 
   const VANIspeak = (text: string, callback?: () => void) => {
-    if (!voiceEnabled || !('speechSynthesis' in window)) {
-      if (callback) callback();
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-
-    setTimeout(() => {
-      const cleanText = text
-        .replace(/[*#_\-\[\]()]/g, '')
-        .replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDFFF]/g, '');
-
-      if (!cleanText.trim()) {
-        if (callback) callback();
-        return;
-      }
-
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      const voices = window.speechSynthesis.getVoices();
-      
-      const targetVoice = voices.find(v => v.lang.includes('en-IN')) || 
-                          voices.find(v => v.lang.includes('en-GB')) || 
-                          voices.find(v => v.lang.startsWith('en'));
-
-      if (targetVoice) utterance.voice = targetVoice;
-      utterance.rate = speechRate === 'slow' ? 0.72 : 1.0;
-      utterance.pitch = 1.05;
-
-      utterance.onstart = () => setStatus('speaking');
-      utterance.onend = () => {
-        setStatus('idle');
-        if (callback) callback();
-      };
-      utterance.onerror = () => {
-        setStatus('idle');
-        if (callback) callback();
-      };
-
-      window.speechSynthesis.speak(utterance);
-    }, 120);
+    speakVani(text, callback);
   };
 
   async function sendToVANI(userText: string, activeScenario: string = "") {
@@ -1060,6 +1149,8 @@ Plain text only — NO asterisks, NO bullet points, NO markdown. Output goes dir
 
   return (
     <div className="min-h-screen bg-[#060608] text-white font-sans antialiased overflow-y-auto py-4 sm:py-6 md:py-8 flex flex-col items-center justify-center relative select-none">
+      {/* Self-politeness announcement container for screen readers */}
+      <div id="a11y-announcer" role="status" aria-live="polite" className="sr-only"></div>
       
       {/* Radiant atmospheric background glow (Majestic Dark Purple & Black) */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] h-[340px] bg-[#BD53F4]/10 rounded-full blur-[100px] pointer-events-none" />
@@ -1154,6 +1245,23 @@ Plain text only — NO asterisks, NO bullet points, NO markdown. Output goes dir
                 title="System settings"
               >
                 <Settings className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                id="caption-toggle"
+                aria-label="Toggle captions"
+                aria-pressed={captionsEnabled}
+                onClick={() => {
+                  setCaptionsEnabled(prev => !prev);
+                  announceToScreenReader(!captionsEnabled ? "Captions enabled" : "Captions disabled");
+                }}
+                className={`w-7 h-7 font-sans font-black text-[9px] rounded-lg border transition-all cursor-pointer flex items-center justify-center shrink-0 ${
+                  captionsEnabled 
+                    ? 'bg-[#FF8C4A] border-[#FF8C4A] text-[#0D0D0D] font-black' 
+                    : 'bg-[#18181A] border-white/5 text-[#FF8C4A] hover:border-[#FF8C4A]/40'
+                }`}
+              >
+                CC
               </button>
 
               {/* MANUAL VOICE WAKE-UP BUTTON */}
@@ -1482,8 +1590,34 @@ Plain text only — NO asterisks, NO bullet points, NO markdown. Output goes dir
                     ))}
                   </div>
 
+                  {/* LIVE CAPTION CONTAINER */}
+                  {captionsEnabled && captionVisible && currentCaption && (
+                    <div 
+                      id="vani-caption-bar"
+                      role="region"
+                      aria-label="VANI live captions"
+                      aria-live="polite"
+                      className="w-[calc(100%-32px)] mx-4 my-2 px-3.5 py-2.5 bg-black/85 border border-[#FF8C4A] rounded-xl text-xs text-[#F5F5F5] leading-relaxed max-h-24 overflow-y-auto font-sans shadow-md text-center"
+                    >
+                      {currentCaption}
+                    </div>
+                  )}
+
                   {/* Layer C — MIC BUTTON ROW */}
-                  <div id="mic-button-row" className="flex justify-center pb-2">
+                  <div id="mic-button-row" className="flex justify-center items-center gap-4 pb-2">
+                    
+                    {/* STOP VANI BUTTON */}
+                    <button
+                      id="stop-vani-btn"
+                      aria-label="Stop VANI speaking"
+                      onClick={stopVANI}
+                      disabled={status !== 'speaking'}
+                      className="w-9 h-9 bg-[#1A1A1A] border border-[#767676] rounded-xl text-[#B0B0B0] hover:text-white flex items-center justify-center text-lg cursor-pointer transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+                      title="Stop VANI speech"
+                    >
+                      ⏹
+                    </button>
+
                     <div className="relative">
                       {/* Ripple elements on listening state */}
                       {status === 'listening' && (
@@ -1497,6 +1631,9 @@ Plain text only — NO asterisks, NO bullet points, NO markdown. Output goes dir
                       {/* Perfect 72px mic button */}
                       <motion.button
                         id="mic-btn"
+                        role="button"
+                        aria-pressed={status === 'listening'}
+                        aria-describedby="voice-status-text"
                         onClick={() => {
                           triggerMicToggle();
                           if (status === 'idle') {
@@ -1552,6 +1689,7 @@ Plain text only — NO asterisks, NO bullet points, NO markdown. Output goes dir
 
               {/* Layer D — BOTTOM TAB BAR */}
               <nav 
+                role="tablist"
                 className="w-full bg-[#0D0518] border-t border-[#BD53F4]/30 h-16 flex justify-around items-center px-1.5" 
                 id="easy-english-bottom-dock"
               >
@@ -1559,6 +1697,9 @@ Plain text only — NO asterisks, NO bullet points, NO markdown. Output goes dir
                 {/* Tab 1: HOME */}
                 <button 
                   type="button"
+                  role="tab"
+                  aria-label="Home Dashboard — customized education progress reports"
+                  aria-selected={activeTab === 'home' ? 'true' : 'false'}
                   onClick={() => {
                     setActiveTab('home');
                     setCurrentSubScreen(null);
@@ -1578,6 +1719,9 @@ Plain text only — NO asterisks, NO bullet points, NO markdown. Output goes dir
                 {/* Tab 2: TOPICS */}
                 <button 
                   type="button"
+                  role="tab"
+                  aria-label="Topics — Browse and speak 50 native interactive scenarios"
+                  aria-selected={activeTab === 'topics' ? 'true' : 'false'}
                   onClick={() => {
                     setActiveTab('topics');
                     setCurrentSubScreen(null);
@@ -1597,6 +1741,9 @@ Plain text only — NO asterisks, NO bullet points, NO markdown. Output goes dir
                 {/* Tab 3: TALK */}
                 <button 
                   type="button"
+                  role="tab"
+                  aria-label="Talk to Coach Vani — active voice conversation lounge"
+                  aria-selected={activeTab === 'talk' ? 'true' : 'false'}
                   onClick={() => {
                     setActiveTab('talk');
                     setCurrentSubScreen(null);
@@ -1616,6 +1763,9 @@ Plain text only — NO asterisks, NO bullet points, NO markdown. Output goes dir
                 {/* Tab 4: TRANSLATE */}
                 <button 
                   type="button"
+                  role="tab"
+                  aria-label="Bengali to English translation assistant screen"
+                  aria-selected={activeTab === 'translate' ? 'true' : 'false'}
                   onClick={() => {
                     setActiveTab('translate');
                     setCurrentSubScreen(null);
@@ -1635,6 +1785,9 @@ Plain text only — NO asterisks, NO bullet points, NO markdown. Output goes dir
                 {/* Tab 5: PROGRESS */}
                 <button 
                   type="button"
+                  role="tab"
+                  aria-label="Oral assessment logs, average score and unlocked achievements stats tracker"
+                  aria-selected={activeTab === 'progress' ? 'true' : 'false'}
                   onClick={() => {
                     setActiveTab('progress');
                     setCurrentSubScreen(null);
